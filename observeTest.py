@@ -8,22 +8,21 @@ import numpy as np
 from datetime import datetime
 import queue as q
 import os
-# import pydub
+import pydub
+from pydub import AudioSegment
 # 自作関数
 import csvOperate
 import getLocalfileName as getFN
 
-
-# #実行はこっちでやる python audio.py 
 preAudioFileNameQ  = q.Queue()
 postAudioFileNameQ = q.Queue()
 
 # # もちろんネットにつながってくれていないとダメ
-# RecoginzeAudioFile
+# pythonのSpeechRecognitionを使って音声認識
+# https://qiita.com/seigot/items/62a85f1a561bb820532a
 def fileRecognition(AUDIO_FILE = "gootes.wav"):
     # use the audio file as the audio source
     r = sr.Recognizer()
-    # with sr.AudioFile("output.wav") as source:
     with sr.AudioFile(AUDIO_FILE) as source:
         audio = r.record(source)  # read the entire audio file
     try:
@@ -40,7 +39,7 @@ def fileRecognition(AUDIO_FILE = "gootes.wav"):
 
 # 音を監視して一定以上の音量を録音する
 # https://qiita.com/mix_dvd/items/dc53926b83a9529876f7
-def speechRecord(threshold=0.1):#閾値
+def RecordAudio(threshold = 0.1, RECORD_SECONDS = 5.0):#閾値
     # バージョンの表示 1.18.5
     # print(np.__version__)
     # 音データフォーマット
@@ -48,7 +47,7 @@ def speechRecord(threshold=0.1):#閾値
     FORMAT = pyaudio.paInt16
     CHANNELS = 1
     RATE = 44100
-    RECORD_SECONDS = 4
+    RECORD_SECONDS = 5
 
     # 音の取込開始
     p = pyaudio.PyAudio()
@@ -58,8 +57,6 @@ def speechRecord(threshold=0.1):#閾値
         input = True,
         frames_per_buffer = chunk
     )
-
-    cnt = 0
 
     while True:
         # 音データの取得
@@ -71,9 +68,9 @@ def speechRecord(threshold=0.1):#閾値
         if x.max() > threshold:
             filename = datetime.today().strftime("%Y%m%d%H%M%S") + ".wav"
             preAudioFileNameQ.put(filename)
-            print(cnt, filename)
+            print("Record",filename)
 
-            # 2秒間の音データを取込
+            # RECORD_SECONDS秒間の音データを取込
             all = []
             all.append(data)
             for ii in range(0, int(RATE / chunk * int(RECORD_SECONDS))):
@@ -89,16 +86,8 @@ def speechRecord(threshold=0.1):#閾値
             out.writeframes(data)
             out.close()
 
-            print("Saved.")
-            # contents = fileRecognition(filename)#音声認識の結果をcontentsに入れる
-            # if(contents=="understand audio"):
-                # os.remove(name)
-
-            cnt += 1
-
-        # 2回検出したら終了
-        if cnt > 2:
-            break
+            print("Audio File Saved.")
+            return filename
     stream.close()
     p.terminate()
 
@@ -109,42 +98,32 @@ def srFromQ():
         name = str(preAudioFileNameQ.get())
         postAudioFileNameQ.put(name)
         contents = fileRecognition(name)#音声認識の結果をcontentsに入れる
-        if(contents=="understand audio"):#何も認識できなければ音声ファイルを削除する
+        if(contents=="understand audio"):
             os.remove(name)
         csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
+
+# 音声ファイルの音量を変える（Pydub）
+# https://qiita.com/nyancook/items/786cffd0b07bad8b4444
+def ChangeAudioVolume(FILE_NAME = "20201029164210.wav"):
+    base_sound = AudioSegment.from_file(FILE_NAME, format="wav")  # 音声を読み込み
+    # base_sound = base_sound + 10　#nデシベル音量を挙げる（※解析が必要）
+    base_sound.export("Volume"+FILE_NAME, format="wav")
+    print("Volume Up Audio File Saved")
+
 # pa = pyaudio.PyAudio()
 # for i in range(pa.get_device_count()):
 #     print(pa.get_device_info_by_index(i))
-name = "20200721000000"
+filename = "NonDirect1_self.wav"
 while True:
     # sound = pydub.AudioSegment.from_mp3("tomo1013_1.mp3")
     # sound.export("output.wav", format="wav")
-    # contents = fileRecognition(AUDIO_FILE = "1028tes.wav")
-    # csvOperate.addwriteCsv(date = "10/13", time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # contents = fileRecognition(AUDIO_FILE = "NonDirect1_self.wav")
-    # csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # contents = fileRecognition(AUDIO_FILE = "Direct2_self.wav")
-    # csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # contents = fileRecognition(AUDIO_FILE = "NonDirect2_self.wav")
-    # csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # contents = fileRecognition(AUDIO_FILE = "Direct3_self.wav")
-    # csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # contents = fileRecognition(AUDIO_FILE = "NonDirect3_self.wav")
-    # csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # contents = fileRecognition(AUDIO_FILE = "Direct4_talk.wav")
-    # csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # contents = fileRecognition(AUDIO_FILE = "NonDirect4_talk.wav")
-    # csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # contents = fileRecognition(AUDIO_FILE = "Direct5_talk.wav")
-    # csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # contents = fileRecognition(AUDIO_FILE = "NonDirect5_talk.wav")
-    # csvOperate.addwriteCsv(date = name[:8], time = name[8:14], contents = contents, openFileName = "csvTes.csv")
-    # getFN.addwriteCsv()
-    if(preAudioFileNameQ.empty()):
-        # 空になったらレコードスタート
-        speechRecord(threshold=0.2)
+    # if(preAudioFileNameQ.empty()):
+    filename = RecordAudio(threshold=0.0, RECORD_SECONDS=3.0)# 一定の閾値で音声の録音をスタート
+    contents = fileRecognition(filename)#音声認識の結果をcontentsに入れる
+    ChangeAudioVolume(FILE_NAME = filename)
+    if(contents=="understand audio"):#何も認識できなければ音声ファイルを削除する
+        os.remove(filename)
+        os.remove("Volume"+filename)
     else:
-        srFromQ()
-        
+        csvOperate.addwriteCsv(date = filename[:8], time = filename[8:14], contents = contents, openFileName = "csvTes.csv")
         
